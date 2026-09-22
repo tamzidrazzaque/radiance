@@ -350,6 +350,34 @@ class RadianceTapeoutSim4Slice4ChanConfig extends Config(
   new RadianceTapeoutSim4SliceConfig
 )
 
+/** 1:1 L2 slice and AXI memory-port striping.
+  *
+  * `stripeBytes` is kept intact on one path, then the next stripe goes to the
+  * next path. With nChannels=4 and stripeBytes=512 the select is addr[10:9]
+  * (mask = 512*(4-1) = 0x600), on both BankBinder (L2Slices) and the AXI
+  * channel filter (MemoryChannelInterleaveBytes). Do not use
+  * RadianceTapeoutSim4Slice4ChanConfig for this organization: that config
+  * still stripes AXI ports at blockBytes (32).
+  */
+class WithAlignedL2MemoryChannels(nChannels: Int, stripeBytes: Int) extends Config(
+  new WithL2Slices(nChannels, Some(stripeBytes)) ++
+  new freechips.rocketchip.subsystem.WithNMemoryChannels(nChannels) ++
+  new Config((_, _, _) => {
+    case freechips.rocketchip.subsystem.MemoryChannelInterleaveBytes => Some(stripeBytes)
+  })
+)
+
+/** Architecture 1: 4 L2 slices, 4 AXI memory ports, 512 B contiguous stripes. */
+class RadianceMemPerf4PathConfig extends Config(
+  new WithAlignedL2MemoryChannels(4, 512) ++
+  new RadianceMemPerfConfig
+)
+
+class RadianceSingleClusterTapeoutSim4PathConfig extends Config(
+  new WithAlignedL2MemoryChannels(4, 512) ++
+  new RadianceSingleClusterTapeoutSimConfig
+)
+
 class RadianceTapeoutNDAFreeConfig extends Config(
   new chipyard.clocking.WithClockTapIOCells ++
   new WithRadianceTapeoutPeripheralsNoClockGate ++
