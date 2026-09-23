@@ -373,6 +373,14 @@ class RadianceMemPerf4PathConfig extends Config(
   new RadianceMemPerfConfig
 )
 
+/** Test-only 32 B stripe (one L2 block). Not Architecture 1.
+  * Path select is addr[6:5] (mask = 32*(4-1) = 0x60).
+  */
+class RadianceMemPerf4Path32BConfig extends Config(
+  new WithAlignedL2MemoryChannels(4, 32) ++
+  new RadianceMemPerfConfig
+)
+
 class RadianceSingleClusterTapeoutSim4PathConfig extends Config(
   new WithAlignedL2MemoryChannels(4, 512) ++
   new RadianceSingleClusterTapeoutSimConfig
