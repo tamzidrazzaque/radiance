@@ -229,6 +229,27 @@ object Decoder {
     )
   }
 
+  // ISA opext is bits [8:7] of the 9-bit field Decode calls Opcode. .global is 00
+  // and .shared is 01; the memory opcode itself is only bits [6:0]. Table lookup
+  // must accept both, and classification must ignore the qualifier.
+  private def opcodeBits(op: String): String = op.stripPrefix("b")
+
+  private def isMemOpcode(op: String): Boolean = {
+    val bits = opcodeBits(op)
+    bits.length == 9 && (bits.takeRight(7) == "0000011" || bits.takeRight(7) == "0100011")
+  }
+
+  private def canonicalMem(op: String): String = {
+    val bits = opcodeBits(op)
+    if (isMemOpcode(op)) "b00" + bits.takeRight(7) else op
+  }
+
+  private def memQualified(op: String): Seq[String] = {
+    val bits = opcodeBits(op)
+    if (isMemOpcode(op)) Seq("00", "01").map(ext => "b" + ext + bits.takeRight(7))
+    else Seq(op)
+  }
+
   def allDecodeFields: Seq[DecodeField] = {
     Seq(
       Opcode, F3, F7, Rd, Rs1, Rs2, Rs3, Pred,
@@ -253,8 +274,9 @@ object Decoder {
     allDecodeFields.filter(!_.essential)
   }
 
-  def staticDecode(field: DecodeField, op: String,
+  def staticDecode(field: DecodeField, opIn: String,
                    f3: LazyField, f7: LazyField): Option[Boolean] = {
+    val op = canonicalMem(opIn)
     def sd(f: DecodeField) = staticDecode(f, op, f3, f7).get
     val isFpExOp = op.endsWith("1111011") && f7 == "0101110"
     field match {
@@ -462,7 +484,7 @@ object Decoder {
   val tableIndices = allDecodeFields
     .flatMap(f => staticDecode(f, "", 0.U(3.W), 0.U(7.W)).map(_ => f)).zipWithIndex.toMap
 
-  val _tableData = allOpcodes.flatMap { op =>
+  val _tableData = allOpcodes.flatMap(memQualified).distinct.flatMap { op =>
     // for every field, there's always a 2-step process:
     // 1. symbolic evaluation for usage, 2. concrete (+recursive) evaluation for signals
     val f3 = new LazyField(0, 3)
