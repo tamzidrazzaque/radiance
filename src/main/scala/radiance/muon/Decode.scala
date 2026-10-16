@@ -232,6 +232,8 @@ object Decoder {
     Seq(
       MuOpcode.LOAD, MuOpcode.CUSTOM0, MuOpcode.MISC_MEM, MuOpcode.OP_IMM, MuOpcode.AUIPC,
       MuOpcode.STORE, MuOpcode.CUSTOM1, MuOpcode.OP, MuOpcode.LUI, MuOpcode.MADD, MuOpcode.MSUB,
+      // bits [8:7] select the address space (InstBuffer opext). 01 is shared memory.
+      "b010000011", "b010100011",
       MuOpcode.NM_SUB, MuOpcode.NM_ADD, MuOpcode.OP_FP, MuOpcode.CUSTOM2, MuOpcode.BRANCH,
       MuOpcode.JALR, MuOpcode.JAL, MuOpcode.SYSTEM, MuOpcode.CUSTOM3,
       MuOpcode.NU_INVOKE, MuOpcode.NU_INVOKE_IMM
@@ -262,8 +264,12 @@ object Decoder {
     allDecodeFields.filter(!_.essential)
   }
 
-  def staticDecode(field: DecodeField, op: String,
+  def staticDecode(field: DecodeField, opIn: String,
                    f3: LazyField, f7: LazyField): Option[Boolean] = {
+    // A memory opcode's bits [8:7] select global (00) or shared (01). The LSU
+    // classifies the address space from those bits; the rest of decode must
+    // treat the shared form as the same LOAD or STORE.
+    val op = if (opIn.startsWith("b") && opIn.length == 10) "b00" + opIn.drop(3) else opIn
     def sd(f: DecodeField) = staticDecode(f, op, f3, f7).get
     val isFpExOp = op.endsWith("1111011") && f7 == "0101110"
     field match {

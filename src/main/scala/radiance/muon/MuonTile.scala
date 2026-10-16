@@ -474,11 +474,17 @@ class MuonTileModuleImp(outer: MuonTile) extends BaseTileModuleImp(outer) {
   outer.reportCease(None)
   outer.reportWFI(None)
 
-  when (outer.muonParams.disabled.B || softReset) {
+  when (outer.muonParams.disabled.B) {
     core.io.imem.req.ready := false.B
     core.io.imem.resp.valid := false.B // responses will be dropped
     outer.icacheWordNode.out.foreach(_._1.a.valid := false.B)
     outer.icacheWordNode.out.foreach(_._1.a.ready := true.B) // drain downstream
+  }
+  // Soft reset must only stall the core. Forcing the I$ A channel ready while
+  // squashing its valid retires a miss that was never sent, so the core never
+  // fetches after reset is released.
+  when (softReset) {
+    core.io.imem.req.ready := false.B
   }
 
   // inst/mem traces
