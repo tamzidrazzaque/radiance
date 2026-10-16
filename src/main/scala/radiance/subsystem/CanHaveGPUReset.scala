@@ -105,7 +105,10 @@ class GPUResetAggregator(params: GPUResetParams, slaves: Seq[SoftResetFinishNode
       val (_, stopSim) = Counter(0 until 1024, haltTrigger, !haltTrigger)
       // simulation only: +gpu_finish_keeps_sim=1 lets the rv64 host keep running after the GPU is idle
       // (needed for host-side read-back checks; the default keeps the old behaviour)
-      val keepSim = freechips.rocketchip.util.PlusArg("gpu_finish_keeps_sim", 0,
+      // Default 1: FireSim FPGA elaboration constant-folds this plusarg to its default
+      // (plusarg_reader ties the output off under SYNTHESIS), and the nightly host
+      // has to read results back after every warp has ended.
+      val keepSim = freechips.rocketchip.util.PlusArg("gpu_finish_keeps_sim", 1,
         "1: do not stop the simulation when every GPU core is idle")
       when (stopSim && keepSim === 0.U) {
         stop("no more active warps for 1k cycles\n")
